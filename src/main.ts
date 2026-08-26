@@ -14,7 +14,9 @@ const game = new Phaser.Game({
   pixelArt: true,
   physics: {
     default: 'arcade',
-    arcade: { gravity: { x: 0, y: 0 }, debug: false },
+    // fixedStep:false — step per render frame (variable delta) so movement is
+    // smooth on high-refresh displays instead of updating at a fixed 60Hz.
+    arcade: { gravity: { x: 0, y: 0 }, fixedStep: false, debug: false },
   },
   scale: {
     mode: Phaser.Scale.FIT,

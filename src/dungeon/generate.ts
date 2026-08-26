@@ -167,22 +167,6 @@ export function generate(seed: string, depth: number): Floorplan {
     }
   }
 
-  // Art constraint: the wall grammar cannot draw a one-tile-thick wall with floor
-  // both above and below (a brick face needs its cap row). Merge such cells into floor.
-  let merged = true;
-  while (merged) {
-    merged = false;
-    for (let y = 1; y < size - 1; y++) {
-      for (let x = 1; x < size - 1; x++) {
-        const i = y * size + x;
-        if (tiles[i] === Tile.Void && isWalkable(tiles[i - size]) && isWalkable(tiles[i + size])) {
-          tiles[i] = Tile.Floor;
-          merged = true;
-        }
-      }
-    }
-  }
-
   const spawn = roomCenter(rooms[0]);
 
   // Farthest walkable tile from spawn by true path distance (BFS) hosts the exit — or the prize.

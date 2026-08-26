@@ -95,25 +95,6 @@ describe('generate', () => {
     }
   });
 
-  it('never produces a one-tile-thick horizontal wall (floor above and below)', () => {
-    for (const seed of SEEDS.slice(0, 10)) {
-      for (const depth of DEPTHS) {
-        const { size, tiles } = generate(seed, depth);
-        for (let y = 1; y < size - 1; y++) {
-          for (let x = 0; x < size; x++) {
-            const i = y * size + x;
-            if (!isWalkable(tiles[i])) {
-              expect(
-                isWalkable(tiles[i - size]) && isWalkable(tiles[i + size]),
-                `seed=${seed} depth=${depth} at (${x},${y})`,
-              ).toBe(false);
-            }
-          }
-        }
-      }
-    }
-  });
-
   it('the stairs are a meaningful distance from spawn', () => {
     for (const seed of SEEDS.slice(0, 10)) {
       const plan = generate(seed, 1);
