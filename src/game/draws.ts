@@ -15,9 +15,6 @@ export const actorDepth = (feetY: number) => ACTOR_DEPTH + feetY;
 /** Depth for a wall structure standing in tile row `cellY` (base = row bottom). */
 export const wallBaseDepth = (cellY: number) => ACTOR_DEPTH + (cellY + 1) * 16;
 
-/** How far into the wall mass blob tiles are drawn before fading to darkness. */
-const WALL_DRAW_RING = 2;
-
 export interface GroundDraw {
   x: number;
   y: number;
@@ -55,13 +52,20 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
         continue;
       }
       if (plan.tiles[y * s + x] === Tile.Wall) colliders.push({ x, y });
-      let nearFloor = false;
-      for (let dy = -WALL_DRAW_RING; dy <= WALL_DRAW_RING && !nearFloor; dy++) {
-        for (let dx = -WALL_DRAW_RING; dx <= WALL_DRAW_RING && !nearFloor; dx++) {
-          if (walkableAt(x + dx, y + dy)) nearFloor = true;
+
+      // The dungeon is carved into solid rock (matching 0x72's own sample
+      // composition): EVERY non-walkable cell gets its blob piece, so there is
+      // no bare blackness inside the map — the mask-255 interior tile fills
+      // deep mass. The tall-wall art is authored to sit ON ground (transparent
+      // margins show the floor a wall stands on), so pave under wall cells
+      // that touch floor.
+      let touchesFloor = false;
+      for (let dy = -1; dy <= 1 && !touchesFloor; dy++) {
+        for (let dx = -1; dx <= 1 && !touchesFloor; dx++) {
+          if (walkableAt(x + dx, y + dy)) touchesFloor = true;
         }
       }
-      if (!nearFloor) continue; // deep wall mass stays dark
+      if (touchesFloor) ground.push({ x, y, name: floorFrameAt(x, y, plan.depth) });
       walls.push({ x, y, cell: wallAtlasCell(wallish, x, y), depth: wallBaseDepth(y) });
     }
   }
