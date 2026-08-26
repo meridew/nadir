@@ -16,6 +16,9 @@ export const actorDepth = (feetY: number) => ACTOR_DEPTH + feetY;
 /** Depth for a wall structure standing in tile row `cellY` (base = row bottom). */
 export const wallBaseDepth = (cellY: number) => ACTOR_DEPTH + (cellY + 1) * 16;
 
+/** Minimum collider core thickness — part of the anti-tunneling invariant (game/physics.ts). */
+export const MIN_SOLID = 8;
+
 export interface GroundDraw {
   x: number;
   y: number;
@@ -90,7 +93,6 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
         // Solver hardening: thin colliders invite Arcade separation artifacts
         // (direction flip-flops, push-embed pass-throughs). Guarantee a solid
         // core by narrowing floor margins when needed...
-        const MIN_SOLID = 8;
         while (16 - l - r < MIN_SOLID && l + r > 0) {
           if (l >= r) l--;
           else r--;

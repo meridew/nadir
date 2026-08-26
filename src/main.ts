@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PHYSICS_MIN_FPS } from './game/physics';
 import { BootScene } from './scenes/BootScene';
 import { DungeonScene } from './scenes/DungeonScene';
 import { UIScene } from './scenes/UIScene';
@@ -18,6 +19,10 @@ const game = new Phaser.Game({
     // smooth on high-refresh displays instead of updating at a fixed 60Hz.
     arcade: { gravity: { x: 0, y: 0 }, fixedStep: false, debug: false },
   },
+  // Clamp frame deltas: with variable-step physics, an unclamped hitch (the
+  // default floor is 5fps = 200ms!) moves bodies through walls in one step.
+  // See game/physics.ts for the tunneling invariant.
+  fps: { min: PHYSICS_MIN_FPS, smoothStep: true },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

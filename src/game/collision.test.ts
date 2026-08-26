@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { planFromAscii } from '../dungeon/ascii';
 import { Tile, generate, type Floorplan } from '../dungeon/generate';
-import { buildFloorDraws, type ColliderRect } from './draws';
+import { MIN_SOLID, buildFloorDraws, type ColliderRect } from './draws';
+import { PHYSICS_MIN_FPS, PLAYER_SPEED } from './physics';
 
 /** The player's feet box (see entities/Player). */
 const BODY_W = 10;
@@ -134,6 +135,13 @@ function findLeaksAllRegions(plan: Floorplan): { x: number; y: number }[] {
   }
   return leaks;
 }
+
+describe('anti-tunneling invariant', () => {
+  it('no actor can cross the thinnest collider in one clamped physics step', () => {
+    const maxStepSeconds = 1 / PHYSICS_MIN_FPS;
+    expect(PLAYER_SPEED * maxStepSeconds).toBeLessThan(MIN_SOLID);
+  });
+});
 
 describe('collision geometry has no through-wall paths for the feet box', () => {
   it('generated floor, depth 3', () => {

@@ -1,10 +1,11 @@
 import type Phaser from 'phaser';
 import { ANIM } from '../game/anims';
 import type { MoveIntent } from '../game/input';
+import { PLAYER_SPEED } from '../game/physics';
 import { ATLAS_KEY } from '../game/tiles';
 import { Actor } from './Actor';
 
-const SPEED = 95;
+const SPEED = PLAYER_SPEED;
 
 export class Player extends Actor {
   constructor(scene: Phaser.Scene, x: number, y: number) {
