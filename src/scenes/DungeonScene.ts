@@ -36,6 +36,8 @@ export class DungeonScene extends Phaser.Scene {
   private transitioning = false;
   private won = false;
   private debugMove: { vx: number; vy: number; until: number } | null = null;
+  /** flight recorder: recent feet-box positions for glitch reports (nadir.trail()) */
+  private crumbs: { t: number; x: number; y: number; dt: number }[] = [];
 
   constructor() {
     super('dungeon');
@@ -96,6 +98,7 @@ export class DungeonScene extends Phaser.Scene {
         this.debugMove = { vx, vy, until: this.time.now + ms };
       },
       descend: () => this.descend(),
+      trail: () => this.crumbs.slice(),
     });
   }
 
@@ -190,6 +193,15 @@ export class DungeonScene extends Phaser.Scene {
       }
     }
     this.player.move(intent);
+
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    this.crumbs.push({
+      t: Math.round(this.time.now),
+      x: Math.round(body.x * 10) / 10,
+      y: Math.round(body.y * 10) / 10,
+      dt: Math.round(this.game.loop.delta * 10) / 10,
+    });
+    if (this.crumbs.length > 240) this.crumbs.shift();
   }
 
   private descend() {

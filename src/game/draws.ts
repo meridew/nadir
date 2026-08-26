@@ -56,6 +56,8 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
   const ground: GroundDraw[] = [];
   const walls: WallDraw[] = [];
   const colliders: ColliderRect[] = [];
+  // per-cell solid x-intervals, gathered for run-merging (colX → rowY → [l, r])
+  const cellIntervals = new Map<number, Map<number, [number, number]>>();
 
   for (let y = 0; y < s; y++) {
     for (let x = 0; x < s; x++) {
@@ -101,9 +103,56 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
           if (t >= b) t--;
           else b--;
         }
-        // (Adjacent cores abut exactly; Arcade's strict overlap tests make a
-        // zero-width seam impassable, so no seam inflation is needed.)
-        colliders.push({ px: x * 16 + l, py: y * 16 + t, w: 16 - l - r, h: 16 - t - b });
+        if (t !== 0 || b !== 0) {
+          // vertical insets (none in the current art) would fall back to a lone rect
+          colliders.push({ px: x * 16 + l, py: y * 16 + t, w: 16 - l - r, h: 16 - t - b });
+        } else {
+          if (!cellIntervals.has(x)) cellIntervals.set(x, new Map());
+          cellIntervals.get(x)!.set(y, [l, 16 - r]);
+        }
+      }
+    }
+  }
+
+  // Merge cell colliders into maximal vertical rects. Stacked per-cell rects
+  // with different insets create "ledge" seams where Arcade's one-shot
+  // separation can scrum a sliding body between alternating pushes and ratchet
+  // it through the wall (reproducible by wall-grinding). Splitting each
+  // column-run at its inset cut points and fusing identical spans leaves no
+  // internal ledge pairs: a wall line becomes one tall column plus flush lips.
+  for (const [colX, rowMap] of cellIntervals) {
+    const rows = [...rowMap.keys()].sort((a, b) => a - b);
+    let runStart = 0;
+    for (let i = 0; i <= rows.length; i++) {
+      const runEnds = i === rows.length || (i > 0 && rows[i] !== rows[i - 1] + 1);
+      if (!runEnds) continue;
+      const run = rows.slice(runStart, i);
+      runStart = i;
+      const cuts = new Set<number>();
+      for (const ry of run) {
+        const [a, b] = rowMap.get(ry)!;
+        cuts.add(a);
+        cuts.add(b);
+      }
+      const bounds = [...cuts].sort((a, b) => a - b);
+      for (let c = 0; c < bounds.length - 1; c++) {
+        const a = bounds[c];
+        const b = bounds[c + 1];
+        let streak = -1;
+        for (let ri = 0; ri <= run.length; ri++) {
+          const solid =
+            ri < run.length && rowMap.get(run[ri])![0] <= a && rowMap.get(run[ri])![1] >= b;
+          if (solid && streak < 0) streak = ri;
+          if (!solid && streak >= 0) {
+            colliders.push({
+              px: colX * 16 + a,
+              py: run[streak] * 16,
+              w: b - a,
+              h: (ri - streak) * 16,
+            });
+            streak = -1;
+          }
+        }
       }
     }
   }

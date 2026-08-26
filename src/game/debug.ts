@@ -7,6 +7,8 @@ export interface NadirDebug {
   warp(tx: number, ty: number): void;
   move(vx: number, vy: number, ms: number): void;
   descend(): void;
+  /** last ~4s of feet-box positions — run right after seeing a glitch */
+  trail(): unknown;
 }
 
 export function installDebugHook(hook: NadirDebug) {
