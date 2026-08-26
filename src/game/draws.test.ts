@@ -31,19 +31,27 @@ describe('buildFloorDraws', () => {
     const walk = (x: number, y: number) =>
       x >= 0 && y >= 0 && x < plan.size && y < plan.size && isWalkable(plan.tiles[y * plan.size + x]);
     for (const c of draws.colliders) {
+      const tx = Math.floor(c.px / 16);
+      const ty = Math.floor(c.py / 16);
       let touches = false;
       for (let dy = -1; dy <= 1 && !touches; dy++)
         for (let dx = -1; dx <= 1 && !touches; dx++) {
-          if (walk(c.x + dx, c.y + dy)) touches = true;
+          if (walk(tx + dx, ty + dy)) touches = true;
         }
-      if (touches) expect(groundCells.has(`${c.x},${c.y}`), `wall (${c.x},${c.y})`).toBe(true);
+      if (touches) expect(groundCells.has(`${tx},${ty}`), `wall (${tx},${ty})`).toBe(true);
     }
   });
 
-  it('every collider cell also has a wall drawing', () => {
+  it('collider rects stay inside their cell and match a wall drawing', () => {
     const drawn = new Set(draws.walls.map((w) => `${w.x},${w.y}`));
     for (const c of draws.colliders) {
-      expect(drawn.has(`${c.x},${c.y}`), `collider (${c.x},${c.y})`).toBe(true);
+      const tx = Math.floor(c.px / 16);
+      const ty = Math.floor(c.py / 16);
+      expect(drawn.has(`${tx},${ty}`), `collider (${tx},${ty})`).toBe(true);
+      expect(c.w).toBeGreaterThanOrEqual(1);
+      expect(c.h).toBeGreaterThanOrEqual(1);
+      expect(c.px + c.w).toBeLessThanOrEqual((tx + 1) * 16);
+      expect(c.py + c.h).toBeLessThanOrEqual((ty + 1) * 16);
     }
   });
 

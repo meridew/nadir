@@ -6,6 +6,7 @@
 import { Tile, isWalkable, type Floorplan } from '../dungeon/generate';
 import { wallAtlasCell } from './dtii-blob';
 import type { DtiiFrameName } from './dtii-frames';
+import { WALL_CELL_INSETS } from './dtii-wall-insets';
 import { floorFrameAt } from './tiles';
 
 /** Actors (player, chest, monsters) and wall pieces share one depth space. */
@@ -29,10 +30,18 @@ export interface WallDraw {
   depth: number;
 }
 
+/** A wall collider rect in world pixels, shrunk to the piece's visible art. */
+export interface ColliderRect {
+  px: number;
+  py: number;
+  w: number;
+  h: number;
+}
+
 export interface FloorDraws {
   ground: GroundDraw[];
   walls: WallDraw[];
-  colliders: { x: number; y: number }[];
+  colliders: ColliderRect[];
 }
 
 export function buildFloorDraws(plan: Floorplan): FloorDraws {
@@ -43,7 +52,7 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
 
   const ground: GroundDraw[] = [];
   const walls: WallDraw[] = [];
-  const colliders: { x: number; y: number }[] = [];
+  const colliders: ColliderRect[] = [];
 
   for (let y = 0; y < s; y++) {
     for (let x = 0; x < s; x++) {
@@ -51,7 +60,6 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
         ground.push({ x, y, name: floorFrameAt(x, y, plan.depth) });
         continue;
       }
-      if (plan.tiles[y * s + x] === Tile.Wall) colliders.push({ x, y });
 
       // The dungeon is carved into solid rock (matching 0x72's own sample
       // composition): EVERY non-walkable cell gets its blob piece, so there is
@@ -59,6 +67,7 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
       // deep mass. The tall-wall art is authored to sit ON ground (transparent
       // margins show the floor a wall stands on), so pave under wall cells
       // that touch floor.
+      const cell = wallAtlasCell(wallish, x, y);
       let touchesFloor = false;
       for (let dy = -1; dy <= 1 && !touchesFloor; dy++) {
         for (let dx = -1; dx <= 1 && !touchesFloor; dx++) {
@@ -66,7 +75,14 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
         }
       }
       if (touchesFloor) ground.push({ x, y, name: floorFrameAt(x, y, plan.depth) });
-      walls.push({ x, y, cell: wallAtlasCell(wallish, x, y), depth: wallBaseDepth(y) });
+      walls.push({ x, y, cell, depth: wallBaseDepth(y) });
+
+      if (plan.tiles[y * s + x] === Tile.Wall) {
+        // collide where the wall is VISIBLE: the art's transparent ground
+        // margins (side-bar insets, stub flanks) stay walkable.
+        const [l, t, r, b] = WALL_CELL_INSETS[cell] ?? [0, 0, 0, 0];
+        colliders.push({ px: x * 16 + l, py: y * 16 + t, w: 16 - l - r, h: 16 - t - b });
+      }
     }
   }
 

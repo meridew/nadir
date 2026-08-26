@@ -32,7 +32,7 @@ export class DungeonScene extends Phaser.Scene {
   private player!: Player;
   private prizeSprite?: Phaser.GameObjects.Sprite;
   private keyInput!: KeyInput;
-  private collideLayer!: Phaser.Tilemaps.TilemapLayer;
+  private wallBodies: Phaser.GameObjects.Zone[] = [];
   private transitioning = false;
   private won = false;
   private debugMove: { vx: number; vy: number; until: number } | null = null;
@@ -109,7 +109,6 @@ export class DungeonScene extends Phaser.Scene {
     });
     const tileset = map.addTilesetImage(TILES_KEY, TILES_KEY, TILE_SIZE, TILE_SIZE, 0, 0)!;
     const ground = map.createBlankLayer('ground', tileset)!.setDepth(0);
-    const collide = map.createBlankLayer('collide', tileset)!.setVisible(false);
 
     const draws = buildFloorDraws(plan);
     for (const t of draws.ground) ground.putTileAt(tileIndex(t.name), t.x, t.y);
@@ -120,13 +119,18 @@ export class DungeonScene extends Phaser.Scene {
         .image(tileCenter(w.x), w.y * TILE_SIZE, WALLS_KEY, wallSheetFrame(w.cell))
         .setDepth(w.depth);
     }
-    for (const c of draws.colliders) collide.putTileAt(0, c.x, c.y);
-    collide.setCollisionByExclusion([-1]);
-    this.collideLayer = collide;
+    // art-shaped static colliders (see WALL_CELL_INSETS): walls collide where
+    // they are visible; their painted ground margins stay walkable.
+    this.wallBodies = [];
+    for (const c of draws.colliders) {
+      const zone = this.add.zone(c.px + c.w / 2, c.py + c.h / 2, c.w, c.h);
+      this.physics.add.existing(zone, true);
+      this.wallBodies.push(zone);
+    }
   }
 
   private buildObjectives(plan: Floorplan) {
-    this.physics.add.collider(this.player, this.collideLayer);
+    this.physics.add.collider(this.player, this.wallBodies);
     if (plan.stairsDown) {
       const { x, y } = plan.stairsDown;
       this.add.image(tileCenter(x), tileCenter(y), ATLAS_KEY, 'floor_ladder').setDepth(1);
