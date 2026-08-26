@@ -81,12 +81,26 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
         // Collide where the wall is VISIBLE: the art's transparent ground
         // margins (side-bar insets, stub flanks) stay walkable. An inset only
         // applies on sides that actually face floor — wall-facing sides fuse
-        // to the cell edge so the mass has no internal seams to slip through.
+        // to the cell edge.
         const [l0, t0, r0, b0] = WALL_CELL_INSETS[cell] ?? [0, 0, 0, 0];
-        const l = walkableAt(x - 1, y) ? l0 : 0;
-        const t = walkableAt(x, y - 1) ? t0 : 0;
-        const r = walkableAt(x + 1, y) ? r0 : 0;
-        const b = walkableAt(x, y + 1) ? b0 : 0;
+        let l = walkableAt(x - 1, y) ? l0 : 0;
+        let t = walkableAt(x, y - 1) ? t0 : 0;
+        let r = walkableAt(x + 1, y) ? r0 : 0;
+        let b = walkableAt(x, y + 1) ? b0 : 0;
+        // Solver hardening: thin colliders invite Arcade separation artifacts
+        // (direction flip-flops, push-embed pass-throughs). Guarantee a solid
+        // core by narrowing floor margins when needed...
+        const MIN_SOLID = 8;
+        while (16 - l - r < MIN_SOLID && l + r > 0) {
+          if (l >= r) l--;
+          else r--;
+        }
+        while (16 - t - b < MIN_SOLID && t + b > 0) {
+          if (t >= b) t--;
+          else b--;
+        }
+        // (Adjacent cores abut exactly; Arcade's strict overlap tests make a
+        // zero-width seam impassable, so no seam inflation is needed.)
         colliders.push({ px: x * 16 + l, py: y * 16 + t, w: 16 - l - r, h: 16 - t - b });
       }
     }

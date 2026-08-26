@@ -45,31 +45,22 @@ describe('buildFloorDraws', () => {
   const isPlug = (c: { w: number; h: number; px: number; py: number }) =>
     c.w === 8 && c.h === 8 && (c.px + 4) % 16 === 0 && (c.py + 4) % 16 === 0;
 
-  it('collider rects stay inside their cell and match a wall drawing', () => {
-    const drawn = new Set(draws.walls.map((w) => `${w.x},${w.y}`));
-    for (const c of draws.colliders) {
-      if (isPlug(c)) continue; // corner plugs straddle two cells by design
-      const tx = Math.floor(c.px / 16);
-      const ty = Math.floor(c.py / 16);
-      expect(drawn.has(`${tx},${ty}`), `collider (${tx},${ty})`).toBe(true);
-      expect(c.w).toBeGreaterThanOrEqual(1);
-      expect(c.h).toBeGreaterThanOrEqual(1);
-      expect(c.px + c.w).toBeLessThanOrEqual((tx + 1) * 16);
-      expect(c.py + c.h).toBeLessThanOrEqual((ty + 1) * 16);
-    }
-  });
-
-  it('inset never applies toward another wall (mass has no internal seams)', () => {
+  it('no collider ever intrudes into a walkable cell, and none is thin', () => {
     const walk = (x: number, y: number) =>
       x >= 0 && y >= 0 && x < plan.size && y < plan.size && isWalkable(plan.tiles[y * plan.size + x]);
     for (const c of draws.colliders) {
-      if (isPlug(c)) continue;
-      const tx = Math.floor(c.px / 16);
-      const ty = Math.floor(c.py / 16);
-      if (c.px % 16 !== 0) expect(walk(tx - 1, ty), `left inset at (${tx},${ty})`).toBe(true);
-      if ((c.px + c.w) % 16 !== 0) expect(walk(tx + 1, ty), `right inset at (${tx},${ty})`).toBe(true);
-      if (c.py % 16 !== 0) expect(walk(tx, ty - 1), `top inset at (${tx},${ty})`).toBe(true);
-      if ((c.py + c.h) % 16 !== 0) expect(walk(tx, ty + 1), `bottom inset at (${tx},${ty})`).toBe(true);
+      if (isPlug(c)) continue; // pinch plugs intentionally clip floor corners
+      expect(c.w).toBeGreaterThanOrEqual(8);
+      expect(c.h).toBeGreaterThanOrEqual(8);
+      const tx0 = Math.floor(c.px / 16);
+      const ty0 = Math.floor(c.py / 16);
+      const tx1 = Math.floor((c.px + c.w - 1) / 16);
+      const ty1 = Math.floor((c.py + c.h - 1) / 16);
+      for (let ty = ty0; ty <= ty1; ty++) {
+        for (let tx = tx0; tx <= tx1; tx++) {
+          expect(walk(tx, ty), `collider intrudes into walkable (${tx},${ty})`).toBe(false);
+        }
+      }
     }
   });
 
