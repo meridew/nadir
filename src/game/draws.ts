@@ -78,10 +78,39 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
       walls.push({ x, y, cell, depth: wallBaseDepth(y) });
 
       if (plan.tiles[y * s + x] === Tile.Wall) {
-        // collide where the wall is VISIBLE: the art's transparent ground
-        // margins (side-bar insets, stub flanks) stay walkable.
-        const [l, t, r, b] = WALL_CELL_INSETS[cell] ?? [0, 0, 0, 0];
+        // Collide where the wall is VISIBLE: the art's transparent ground
+        // margins (side-bar insets, stub flanks) stay walkable. An inset only
+        // applies on sides that actually face floor — wall-facing sides fuse
+        // to the cell edge so the mass has no internal seams to slip through.
+        const [l0, t0, r0, b0] = WALL_CELL_INSETS[cell] ?? [0, 0, 0, 0];
+        const l = walkableAt(x - 1, y) ? l0 : 0;
+        const t = walkableAt(x, y - 1) ? t0 : 0;
+        const r = walkableAt(x + 1, y) ? r0 : 0;
+        const b = walkableAt(x, y + 1) ? b0 : 0;
         colliders.push({ px: x * 16 + l, py: y * 16 + t, w: 16 - l - r, h: 16 - t - b });
+      }
+    }
+  }
+
+  // Seal diagonal pinches: where two wall cells meet only at a corner with
+  // floor on the crossing diagonal, their floor-facing insets would open a
+  // squeeze path that full-cell colliders never allowed. A small plug on the
+  // shared corner restores impassability without touching approach feel.
+  const PLUG_HALF = 4;
+  for (let y = 0; y < s - 1; y++) {
+    for (let x = 0; x < s - 1; x++) {
+      const wallNW = !walkableAt(x, y);
+      const wallNE = !walkableAt(x + 1, y);
+      const wallSW = !walkableAt(x, y + 1);
+      const wallSE = !walkableAt(x + 1, y + 1);
+      const pinch = (wallNW && wallSE && !wallNE && !wallSW) || (wallNE && wallSW && !wallNW && !wallSE);
+      if (pinch) {
+        colliders.push({
+          px: (x + 1) * 16 - PLUG_HALF,
+          py: (y + 1) * 16 - PLUG_HALF,
+          w: PLUG_HALF * 2,
+          h: PLUG_HALF * 2,
+        });
       }
     }
   }

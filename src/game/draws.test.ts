@@ -42,9 +42,13 @@ describe('buildFloorDraws', () => {
     }
   });
 
+  const isPlug = (c: { w: number; h: number; px: number; py: number }) =>
+    c.w === 8 && c.h === 8 && (c.px + 4) % 16 === 0 && (c.py + 4) % 16 === 0;
+
   it('collider rects stay inside their cell and match a wall drawing', () => {
     const drawn = new Set(draws.walls.map((w) => `${w.x},${w.y}`));
     for (const c of draws.colliders) {
+      if (isPlug(c)) continue; // corner plugs straddle two cells by design
       const tx = Math.floor(c.px / 16);
       const ty = Math.floor(c.py / 16);
       expect(drawn.has(`${tx},${ty}`), `collider (${tx},${ty})`).toBe(true);
@@ -53,6 +57,42 @@ describe('buildFloorDraws', () => {
       expect(c.px + c.w).toBeLessThanOrEqual((tx + 1) * 16);
       expect(c.py + c.h).toBeLessThanOrEqual((ty + 1) * 16);
     }
+  });
+
+  it('inset never applies toward another wall (mass has no internal seams)', () => {
+    const walk = (x: number, y: number) =>
+      x >= 0 && y >= 0 && x < plan.size && y < plan.size && isWalkable(plan.tiles[y * plan.size + x]);
+    for (const c of draws.colliders) {
+      if (isPlug(c)) continue;
+      const tx = Math.floor(c.px / 16);
+      const ty = Math.floor(c.py / 16);
+      if (c.px % 16 !== 0) expect(walk(tx - 1, ty), `left inset at (${tx},${ty})`).toBe(true);
+      if ((c.px + c.w) % 16 !== 0) expect(walk(tx + 1, ty), `right inset at (${tx},${ty})`).toBe(true);
+      if (c.py % 16 !== 0) expect(walk(tx, ty - 1), `top inset at (${tx},${ty})`).toBe(true);
+      if ((c.py + c.h) % 16 !== 0) expect(walk(tx, ty + 1), `bottom inset at (${tx},${ty})`).toBe(true);
+    }
+  });
+
+  it('every diagonal pinch is sealed by a corner plug', () => {
+    const walk = (x: number, y: number) =>
+      x >= 0 && y >= 0 && x < plan.size && y < plan.size && isWalkable(plan.tiles[y * plan.size + x]);
+    const plugs = new Set(
+      draws.colliders.filter(isPlug).map((c) => `${c.px + 4},${c.py + 4}`),
+    );
+    let pinches = 0;
+    for (let y = 0; y < plan.size - 1; y++) {
+      for (let x = 0; x < plan.size - 1; x++) {
+        const nw = !walk(x, y);
+        const ne = !walk(x + 1, y);
+        const sw = !walk(x, y + 1);
+        const se = !walk(x + 1, y + 1);
+        if ((nw && se && !ne && !sw) || (ne && sw && !nw && !se)) {
+          pinches++;
+          expect(plugs.has(`${(x + 1) * 16},${(y + 1) * 16}`), `pinch at (${x},${y})`).toBe(true);
+        }
+      }
+    }
+    expect(plugs.size).toBe(pinches);
   });
 
   it('fills every non-walkable cell with a valid piece at its base depth', () => {
