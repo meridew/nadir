@@ -30,6 +30,17 @@ describe('blob autotile oracle', () => {
     expect(Object.keys(BLOB_CELL)).toHaveLength(47);
   });
 
+  it('template cells map through the 24-column physical sheet', async () => {
+    const { wallSheetFrame, wallFrameRect } = await import('./dtii-blob');
+    expect(wallSheetFrame(0)).toBe(0);
+    expect(wallSheetFrame(11)).toBe(11);
+    expect(wallSheetFrame(12)).toBe(24); // template row 1 starts at physical frame 24
+    expect(wallSheetFrame(33)).toBe(9 + 2 * 24);
+    expect(wallSheetFrame(47)).toBe(11 + 3 * 24);
+    expect(wallFrameRect(12)).toEqual([0, 32, 16, 32]);
+    expect(wallFrameRect(47)).toEqual([11 * 16, 3 * 32, 16, 32]);
+  });
+
   it('spot checks against the template', () => {
     expect(BLOB_CELL[16]).toBe(0); // south-only: top end of a vertical run
     expect(BLOB_CELL[255]).toBe(33); // fully interior

@@ -4,6 +4,7 @@ import { generate, maxDepth, type Floorplan } from '../dungeon/generate';
 import { Player } from '../entities/Player';
 import { ANIM } from '../game/anims';
 import { actorDepth, buildFloorDraws } from '../game/draws';
+import { wallSheetFrame } from '../game/dtii-blob';
 import { installDebugHook } from '../game/debug';
 import { setHud, patchHud } from '../game/hud';
 import { KeyInput } from '../game/input';
@@ -115,7 +116,9 @@ export class DungeonScene extends Phaser.Scene {
     for (const w of draws.walls) {
       // 16x32 blob piece, bottom-anchored to its cell so the cap half rises
       // into the cell above; y-sorts against actors by its base depth.
-      this.add.image(tileCenter(w.x), w.y * TILE_SIZE, WALLS_KEY, w.cell).setDepth(w.depth);
+      this.add
+        .image(tileCenter(w.x), w.y * TILE_SIZE, WALLS_KEY, wallSheetFrame(w.cell))
+        .setDepth(w.depth);
     }
     for (const c of draws.colliders) collide.putTileAt(0, c.x, c.y);
     collide.setCollisionByExclusion([-1]);

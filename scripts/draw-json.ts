@@ -1,5 +1,5 @@
 /** Shared conversion: FloorDraws → compose-map.ps1 draw commands. */
-import { WALL_ATLAS_COLS, WALL_TILE_H, WALL_TILE_W } from '../src/game/dtii-blob';
+import { wallFrameRect } from '../src/game/dtii-blob';
 import type { FloorDraws } from '../src/game/draws';
 import { DTII_FRAMES } from '../src/game/dtii-frames';
 
@@ -26,12 +26,7 @@ export function cmdsFromDraws(draws: FloorDraws): DrawCmd[] {
       y: w.y,
       dy: -16, // 16x32 piece, bottom-anchored to its cell
       sy: w.depth,
-      s: [
-        (w.cell % WALL_ATLAS_COLS) * WALL_TILE_W,
-        Math.floor(w.cell / WALL_ATLAS_COLS) * WALL_TILE_H,
-        WALL_TILE_W,
-        WALL_TILE_H,
-      ],
+      s: wallFrameRect(w.cell),
       layer: YSORT_LAYER,
       sheet: 1,
     });

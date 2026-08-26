@@ -13,9 +13,33 @@
  * bounds). Corner bits only count when both adjacent edge bits are set.
  */
 
+/** The template arrangement is 12 columns wide... */
 export const WALL_ATLAS_COLS = 12;
+/**
+ * ...but the physical walls_high.png is 24 columns wide: template cells occupy
+ * the LEFT half of each row; decorated variants fill the right half. Anything
+ * that indexes the sheet must convert through wallSheetFrame/wallFrameRect —
+ * using a template cell as a raw 24-column frame index fetches decor or
+ * emptiness (symptom: criss-cross wall tops, black walls).
+ */
+export const WALL_SHEET_COLS = 24;
 export const WALL_TILE_W = 16;
 export const WALL_TILE_H = 32;
+
+/** Spritesheet frame index (24-col physical sheet) for a template cell. */
+export function wallSheetFrame(cell: number): number {
+  return (cell % WALL_ATLAS_COLS) + Math.floor(cell / WALL_ATLAS_COLS) * WALL_SHEET_COLS;
+}
+
+/** Pixel rect in walls_high.png for a template cell. */
+export function wallFrameRect(cell: number): [number, number, number, number] {
+  return [
+    (cell % WALL_ATLAS_COLS) * WALL_TILE_W,
+    Math.floor(cell / WALL_ATLAS_COLS) * WALL_TILE_H,
+    WALL_TILE_W,
+    WALL_TILE_H,
+  ];
+}
 
 /** Canonical corner reduction: corners only matter when both adjacent edges are set. */
 export function blobReduce(mask: number): number {
