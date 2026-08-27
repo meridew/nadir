@@ -78,7 +78,8 @@ export class Monster extends Actor {
     const dx = this.x - sx;
     const dy = this.feetY - sy;
     const d = Math.hypot(dx, dy) || 1;
-    this.setVelocity((dx / d) * KNOCKBACK_SPEED, (dy / d) * KNOCKBACK_SPEED);
+    const kb = KNOCKBACK_SPEED * (this.def.knockbackScale ?? 1);
+    this.setVelocity((dx / d) * kb, (dy / d) * kb);
     this.setTintFill(0xffffff);
     this.scene.time.delayedCall(HIT_FLASH_MS, () => {
       if (this.active && !this.dying) this.clearTint();

@@ -1,9 +1,7 @@
 /** Pure combat math — hearts, i-frames, knockback. No Phaser. */
 
-/** Player health in half-heart units (3 hearts). */
+/** Player health in half-heart units (3 hearts). Contact damage lives in the species defs. */
 export const MAX_HP = 6;
-/** Contact with a monster costs half a heart. */
-export const CONTACT_DAMAGE = 1;
 /** Invulnerability window after taking a hit. */
 export const IFRAMES_MS = 800;
 /**

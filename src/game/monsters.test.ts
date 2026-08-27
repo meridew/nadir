@@ -4,6 +4,7 @@ import { MIN_SOLID } from './draws';
 import {
   DANGER_BUDGET,
   MONSTER_SPECIES,
+  bossFor,
   placeMonsters,
   speciesForDepth,
 } from './monsters';
@@ -44,10 +45,11 @@ describe('the species bench', () => {
     }
   });
 
-  it('every species is killable and takes at least one hit', () => {
+  it('every species is killable, hits for at least a half-heart, and takes at least one hit', () => {
     for (const def of Object.values(MONSTER_SPECIES)) {
       expect(def.hp, def.id).toBeGreaterThanOrEqual(1);
       expect(Number.isInteger(def.hp), def.id).toBe(true);
+      expect(def.damage, def.id).toBeGreaterThanOrEqual(1);
     }
   });
 
@@ -111,5 +113,26 @@ describe('placeMonsters', () => {
 
   it('leaves the nadir to its boss', () => {
     expect(placeMonsters(generate('alpha', maxDepth()), 'alpha')).toEqual([]);
+  });
+});
+
+describe('bossFor', () => {
+  it('stations big_demon beside the prize on the nadir, clear of the entry', () => {
+    for (const seed of ['alpha', 'beta', 'gamma', 'delta']) {
+      const plan = generate(seed, maxDepth());
+      const boss = bossFor(plan);
+      expect(boss).not.toBeNull();
+      expect(boss!.species).toBe('big_demon');
+      expect(isWalkable(plan.tiles[boss!.y * plan.size + boss!.x]), seed).toBe(true);
+      expect(boss!.x === plan.spawn.x && boss!.y === plan.spawn.y, `${seed} on spawn`).toBe(false);
+      expect(boss!.x === plan.prize!.x && boss!.y === plan.prize!.y, `${seed} on prize`).toBe(false);
+      const guard = Math.max(Math.abs(boss!.x - plan.prize!.x), Math.abs(boss!.y - plan.prize!.y));
+      expect(guard, `${seed} guards the prize`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('returns null above the nadir', () => {
+    expect(bossFor(generate('alpha', 1))).toBeNull();
+    expect(bossFor(generate('alpha', maxDepth() - 1))).toBeNull();
   });
 });

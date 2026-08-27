@@ -8,10 +8,10 @@ import { ANIM } from '../game/anims';
 import { actorDepth, buildFloorDraws } from '../game/draws';
 import { wallSheetFrame } from '../game/dtii-blob';
 import { installDebugHook } from '../game/debug';
-import { CONTACT_DAMAGE, MAX_HP, circleIntersectsRect } from '../game/combat';
+import { MAX_HP, circleIntersectsRect } from '../game/combat';
 import { setHud, patchHud } from '../game/hud';
 import { KeyInput } from '../game/input';
-import { MONSTER_SPECIES, placeMonsters } from '../game/monsters';
+import { MONSTER_SPECIES, bossFor, placeMonsters } from '../game/monsters';
 import {
   ATLAS_KEY,
   TILES_KEY,
@@ -176,9 +176,12 @@ export class DungeonScene extends Phaser.Scene {
     }
   }
 
-  /** The danger: bench monsters spawn and chase (damage arrives with the hearts chunk). */
+  /** The danger: scatter spawns above, the warden at the nadir. */
   private spawnMonsters(plan: Floorplan) {
-    this.monsters = placeMonsters(plan, this.seed).map(
+    const spawns = placeMonsters(plan, this.seed);
+    const boss = bossFor(plan);
+    if (boss) spawns.push(boss);
+    this.monsters = spawns.map(
       (m) => new Monster(this, tileCenter(m.x), tileCenter(m.y), MONSTER_SPECIES[m.species]),
     );
     if (this.monsters.length === 0) return;
@@ -209,7 +212,7 @@ export class DungeonScene extends Phaser.Scene {
   private onMonsterContact(m: Monster) {
     if (this.dead || this.won || this.transitioning) return;
     if (!this.player.hurt(m.x, m.feetY)) return;
-    this.hp = Math.max(0, this.hp - CONTACT_DAMAGE);
+    this.hp = Math.max(0, this.hp - m.def.damage);
     patchHud(this, { hp: this.hp });
     this.cameras.main.shake(90, 0.004);
     if (this.hp <= 0) this.onDeath();

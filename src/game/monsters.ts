@@ -15,7 +15,8 @@ export type MonsterSpeciesId =
   | 'masked_orc'
   | 'chort'
   | 'wogol'
-  | 'necromancer';
+  | 'necromancer'
+  | 'big_demon';
 
 export interface MonsterSpeciesDef {
   id: MonsterSpeciesId;
@@ -30,6 +31,10 @@ export interface MonsterSpeciesDef {
   speed: number;
   /** hits to kill (SWORD_DAMAGE units — see game/combat.ts) */
   hp: number;
+  /** contact damage to the player, in half-hearts */
+  damage: number;
+  /** sword-knockback multiplier (default 1; the boss barely budges) */
+  knockbackScale?: number;
   /** px — sighting the player inside this range starts a chase */
   aggroRadius: number;
 }
@@ -48,6 +53,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     ...FRY_BODY,
     speed: 42,
     hp: 1,
+    damage: 1,
     aggroRadius: 88,
   },
   goblin: {
@@ -57,6 +63,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     ...FRY_BODY,
     speed: 68,
     hp: 1,
+    damage: 1,
     aggroRadius: 96,
   },
   imp: {
@@ -66,6 +73,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     ...FRY_BODY,
     speed: 76,
     hp: 1,
+    damage: 1,
     aggroRadius: 112,
   },
   skelet: {
@@ -75,6 +83,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     ...FRY_BODY,
     speed: 55,
     hp: 2,
+    damage: 1,
     aggroRadius: 112,
   },
   orc_warrior: {
@@ -84,6 +93,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     ...TALL_BODY,
     speed: 58,
     hp: 2,
+    damage: 1,
     aggroRadius: 96,
   },
   masked_orc: {
@@ -93,6 +103,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     ...TALL_BODY,
     speed: 64,
     hp: 2,
+    damage: 1,
     aggroRadius: 104,
   },
   chort: {
@@ -102,6 +113,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     ...TALL_BODY,
     speed: 80,
     hp: 2,
+    damage: 1,
     aggroRadius: 128,
   },
   wogol: {
@@ -111,6 +123,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     ...TALL_BODY,
     speed: 70,
     hp: 2,
+    damage: 1,
     aggroRadius: 128,
   },
   necromancer: {
@@ -120,7 +133,22 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     ...TALL_BODY,
     speed: 45,
     hp: 2,
+    damage: 1,
     aggroRadius: 144,
+  },
+  // The nadir's warden (32×36). Never in a depth band — bossFor places it.
+  big_demon: {
+    id: 'big_demon',
+    idlePrefix: 'big_demon_idle_anim_f',
+    runPrefix: 'big_demon_run_anim_f',
+    bodySize: [16, 6],
+    bodyOffset: [8, 27],
+    shadow: { width: 20, height: 6 },
+    speed: 40,
+    hp: 8,
+    damage: 2,
+    knockbackScale: 0.25,
+    aggroRadius: 160,
   },
 };
 
@@ -131,11 +159,25 @@ export function monsterAnim(id: MonsterSpeciesId, kind: 'idle' | 'run'): Monster
   return `m_${id}_${kind}`;
 }
 
-/** The bench by depth band: fry up top, brutes mid, demons deep. */
+/** The bench by depth band: fry up top, brutes mid, demons deep. The boss is placed by bossFor, never banded. */
 export function speciesForDepth(depth: number): MonsterSpeciesId[] {
   if (depth <= 3) return ['tiny_zombie', 'goblin', 'imp'];
   if (depth <= 6) return ['skelet', 'orc_warrior', 'masked_orc'];
   return ['chort', 'wogol', 'necromancer'];
+}
+
+/**
+ * The nadir's confrontation: big_demon stands one step inward from the prize,
+ * between it and the room. Deterministic — no RNG, no seed.
+ */
+export function bossFor(plan: Floorplan): MonsterSpawn | null {
+  if (!plan.isNadir || !plan.prize) return null;
+  const room = plan.rooms[0];
+  const cx = room.x + Math.floor(room.w / 2);
+  const cy = room.y + Math.floor(room.h / 2);
+  const x = plan.prize.x + Math.sign(cx - plan.prize.x);
+  const y = plan.prize.y + Math.sign(cy - plan.prize.y);
+  return { x, y, species: 'big_demon' };
 }
 
 /**
