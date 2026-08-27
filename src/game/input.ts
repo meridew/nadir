@@ -7,7 +7,7 @@ export interface MoveIntent {
 }
 
 type Keys = Record<
-  'W' | 'A' | 'S' | 'D' | 'UP' | 'LEFT' | 'DOWN' | 'RIGHT' | 'R' | 'N',
+  'W' | 'A' | 'S' | 'D' | 'UP' | 'LEFT' | 'DOWN' | 'RIGHT' | 'R' | 'N' | 'SPACE',
   Phaser.Input.Keyboard.Key
 >;
 
@@ -15,7 +15,7 @@ export class KeyInput {
   private keys: Keys;
 
   constructor(scene: Phaser.Scene) {
-    this.keys = scene.input.keyboard!.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,R,N') as Keys;
+    this.keys = scene.input.keyboard!.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,R,N,SPACE') as Keys;
   }
 
   moveIntent(): MoveIntent {
@@ -26,6 +26,11 @@ export class KeyInput {
     if (this.keys.W.isDown || this.keys.UP.isDown) vy -= 1;
     if (this.keys.S.isDown || this.keys.DOWN.isDown) vy += 1;
     return { vx, vy };
+  }
+
+  /** Space — swing the weapon (held is fine; cooldown lives in Player.attack). */
+  attackDown(): boolean {
+    return this.keys.SPACE.isDown;
   }
 
   /** R — restart the current dungeon (same seed). */

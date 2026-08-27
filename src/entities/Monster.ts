@@ -1,4 +1,5 @@
 import type Phaser from 'phaser';
+import { KNOCKBACK_MS, KNOCKBACK_SPEED, SWORD_DAMAGE } from '../game/combat';
 import { monsterAnim, type MonsterSpeciesDef } from '../game/monsters';
 import { ATLAS_KEY } from '../game/tiles';
 import { Actor } from './Actor';
@@ -6,10 +7,16 @@ import type { Player } from './Player';
 
 /** How long a monster keeps heading for the player's last seen position. */
 const CHASE_MEMORY_MS = 800;
+/** knockback ride plus a short stagger before the AI retakes the wheel */
+const STAGGER_MS = KNOCKBACK_MS + 80;
+const HIT_FLASH_MS = 90;
 
 export class Monster extends Actor {
   readonly def: MonsterSpeciesDef;
+  private hp: number;
   private lastSeen: { x: number; y: number; at: number } | null = null;
+  private stunnedUntil = 0;
+  private dying = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, def: MonsterSpeciesDef) {
     super(scene, x, y, ATLAS_KEY, `${def.idlePrefix}0`, {
@@ -18,6 +25,7 @@ export class Monster extends Actor {
       shadow: def.shadow,
     });
     this.def = def;
+    this.hp = def.hp;
     this.play(monsterAnim(def.id, 'idle'));
   }
 
@@ -32,6 +40,8 @@ export class Monster extends Actor {
    * walls end pursuits. Feet aim at feet — sprite heights differ.
    */
   updateAI(player: Player, canSee: (m: Monster) => boolean, now: number) {
+    if (this.dying) return;
+    if (now < this.stunnedUntil) return; // riding a knockback impulse
     const dist = Math.hypot(player.x - this.x, player.feetY - this.feetY);
     if ((this.alerted || dist < this.def.aggroRadius) && canSee(this)) {
       this.lastSeen = { x: player.x, y: player.feetY, at: now };
@@ -54,7 +64,43 @@ export class Monster extends Actor {
     this.play(monsterAnim(this.def.id, vx !== 0 || vy !== 0 ? 'run' : 'idle'), true);
   }
 
+  /**
+   * Take a sword hit from a source at (sx, sy): flash, knockback, stagger —
+   * and wake up (getting stabbed reveals the stabber). Returns true when the
+   * hit was fatal; the scene then removes it from play and calls perish().
+   */
+  takeHit(sx: number, sy: number): boolean {
+    if (this.dying) return false;
+    this.hp -= SWORD_DAMAGE;
+    const now = this.scene.time.now;
+    this.stunnedUntil = now + STAGGER_MS;
+    this.lastSeen = { x: sx, y: sy, at: now };
+    const dx = this.x - sx;
+    const dy = this.feetY - sy;
+    const d = Math.hypot(dx, dy) || 1;
+    this.setVelocity((dx / d) * KNOCKBACK_SPEED, (dy / d) * KNOCKBACK_SPEED);
+    this.setTintFill(0xffffff);
+    this.scene.time.delayedCall(HIT_FLASH_MS, () => {
+      if (this.active && !this.dying) this.clearTint();
+    });
+    return this.hp <= 0;
+  }
+
+  /** Death poof: fade and shrink out, then leave the scene entirely. */
+  perish() {
+    this.dying = true;
+    (this.body as Phaser.Physics.Arcade.Body).enable = false;
+    this.scene.tweens.add({
+      targets: this,
+      alpha: 0,
+      scale: 0.5,
+      duration: 150,
+      onComplete: () => this.destroy(),
+    });
+  }
+
   halt() {
+    if (this.dying) return;
     this.setVelocity(0, 0);
     this.play(monsterAnim(this.def.id, 'idle'), true);
   }

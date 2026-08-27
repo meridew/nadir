@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KNOCKBACK_SPEED, MAX_HP, heartsFor } from './combat';
+import { KNOCKBACK_SPEED, MAX_HP, circleIntersectsRect, heartsFor } from './combat';
 import { MIN_SOLID } from './draws';
 import { PHYSICS_MIN_FPS } from './physics';
 
@@ -26,5 +26,19 @@ describe('heartsFor', () => {
 describe('knockback', () => {
   it('respects the anti-tunneling bound', () => {
     expect(KNOCKBACK_SPEED / PHYSICS_MIN_FPS).toBeLessThan(MIN_SOLID);
+  });
+});
+
+describe('circleIntersectsRect', () => {
+  it('detects overlap, containment, and edge contact', () => {
+    expect(circleIntersectsRect(0, 0, 5, 3, -2, 10, 4)).toBe(true); // overlaps left edge
+    expect(circleIntersectsRect(5, 5, 20, 0, 0, 10, 10)).toBe(true); // circle swallows rect
+    expect(circleIntersectsRect(5, 5, 2, 4, 4, 2, 2)).toBe(true); // center inside rect
+    expect(circleIntersectsRect(0, 0, 5, 5, 0, 4, 4)).toBe(true); // exact edge touch
+  });
+
+  it('rejects clear misses, including diagonal corners', () => {
+    expect(circleIntersectsRect(0, 0, 5, 6, 0, 4, 4)).toBe(false);
+    expect(circleIntersectsRect(0, 0, 5, 4, 4, 10, 10)).toBe(false); // corner at (4,4): dist √32 > 5
   });
 });

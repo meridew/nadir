@@ -28,6 +28,8 @@ export interface MonsterSpeciesDef {
   shadow: { width: number; height: number };
   /** px/s — every entry stays under PLAYER_SPEED (you can always disengage) and the anti-tunneling bound (game/physics.ts) */
   speed: number;
+  /** hits to kill (SWORD_DAMAGE units — see game/combat.ts) */
+  hp: number;
   /** px — sighting the player inside this range starts a chase */
   aggroRadius: number;
 }
@@ -45,6 +47,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     runPrefix: 'tiny_zombie_run_anim_f',
     ...FRY_BODY,
     speed: 42,
+    hp: 1,
     aggroRadius: 88,
   },
   goblin: {
@@ -53,6 +56,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     runPrefix: 'goblin_run_anim_f',
     ...FRY_BODY,
     speed: 68,
+    hp: 1,
     aggroRadius: 96,
   },
   imp: {
@@ -61,6 +65,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     runPrefix: 'imp_run_anim_f',
     ...FRY_BODY,
     speed: 76,
+    hp: 1,
     aggroRadius: 112,
   },
   skelet: {
@@ -69,6 +74,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     runPrefix: 'skelet_run_anim_f',
     ...FRY_BODY,
     speed: 55,
+    hp: 2,
     aggroRadius: 112,
   },
   orc_warrior: {
@@ -77,6 +83,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     runPrefix: 'orc_warrior_run_anim_f',
     ...TALL_BODY,
     speed: 58,
+    hp: 2,
     aggroRadius: 96,
   },
   masked_orc: {
@@ -85,6 +92,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     runPrefix: 'masked_orc_run_anim_f',
     ...TALL_BODY,
     speed: 64,
+    hp: 2,
     aggroRadius: 104,
   },
   chort: {
@@ -93,6 +101,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     runPrefix: 'chort_run_anim_f',
     ...TALL_BODY,
     speed: 80,
+    hp: 2,
     aggroRadius: 128,
   },
   wogol: {
@@ -101,6 +110,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     runPrefix: 'wogol_run_anim_f',
     ...TALL_BODY,
     speed: 70,
+    hp: 2,
     aggroRadius: 128,
   },
   necromancer: {
@@ -109,6 +119,7 @@ export const MONSTER_SPECIES: Record<MonsterSpeciesId, MonsterSpeciesDef> = {
     runPrefix: 'necromancer_anim_f',
     ...TALL_BODY,
     speed: 45,
+    hp: 2,
     aggroRadius: 144,
   },
 };

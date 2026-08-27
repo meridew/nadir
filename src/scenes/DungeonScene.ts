@@ -8,7 +8,7 @@ import { ANIM } from '../game/anims';
 import { actorDepth, buildFloorDraws } from '../game/draws';
 import { wallSheetFrame } from '../game/dtii-blob';
 import { installDebugHook } from '../game/debug';
-import { CONTACT_DAMAGE, MAX_HP } from '../game/combat';
+import { CONTACT_DAMAGE, MAX_HP, circleIntersectsRect } from '../game/combat';
 import { setHud, patchHud } from '../game/hud';
 import { KeyInput } from '../game/input';
 import { MONSTER_SPECIES, placeMonsters } from '../game/monsters';
@@ -189,6 +189,23 @@ export class DungeonScene extends Phaser.Scene {
     );
   }
 
+  /** Apply the live swing's hit circle to unhit monsters (sprite bounds — hitting what you see). */
+  private resolveSwing() {
+    const swing = this.player.activeSwing;
+    if (!swing) return;
+    for (const m of [...this.monsters]) {
+      if (swing.hit.has(m)) continue;
+      const b = m.getBounds();
+      if (!circleIntersectsRect(swing.x, swing.y, swing.r, b.x, b.y, b.width, b.height)) continue;
+      swing.hit.add(m);
+      if (m.takeHit(this.player.x, this.player.feetY)) {
+        // splice in place — the physics colliders hold THIS array by reference
+        this.monsters.splice(this.monsters.indexOf(m), 1);
+        m.perish();
+      }
+    }
+  }
+
   private onMonsterContact(m: Monster) {
     if (this.dead || this.won || this.transitioning) return;
     if (!this.player.hurt(m.x, m.feetY)) return;
@@ -267,6 +284,8 @@ export class DungeonScene extends Phaser.Scene {
       }
     }
     this.player.move(intent);
+    if (this.keyInput.attackDown()) this.player.attack();
+    this.resolveSwing();
     for (const m of this.monsters) m.updateAI(this.player, this.canSee, this.time.now);
 
     const body = this.player.body as Phaser.Physics.Arcade.Body;

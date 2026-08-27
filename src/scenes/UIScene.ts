@@ -26,7 +26,7 @@ export class UIScene extends Phaser.Scene {
       .text(12, 32, '', { fontFamily: mono, fontSize: '13px', color: '#9a917c' })
       .setShadow(1, 1, '#000000', 2);
     this.add
-      .text(12, this.scale.height - 10, 'move: WASD / arrows  ·  R: restart dungeon  ·  N: new dungeon', {
+      .text(12, this.scale.height - 10, 'move: WASD / arrows  ·  Space: attack  ·  R: restart dungeon  ·  N: new dungeon', {
         fontFamily: mono,
         fontSize: '12px',
         color: '#6b6455',
@@ -76,10 +76,18 @@ export class UIScene extends Phaser.Scene {
     };
 
     render(getHud(this));
+    // A key's FIRST registry.set emits SET_DATA, not changedata-<key> — and
+    // UIScene can create before DungeonScene's first setHud (launch order),
+    // so listen for both or a fresh page boots with a blank HUD.
     const onChange = (_parent: unknown, value: HudState) => render(value);
+    const onSet = (_parent: unknown, key: string, value: HudState) => {
+      if (key === HUD_KEY) render(value);
+    };
     this.registry.events.on(`changedata-${HUD_KEY}`, onChange);
+    this.registry.events.on(Phaser.Data.Events.SET_DATA, onSet);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.registry.events.off(`changedata-${HUD_KEY}`, onChange);
+      this.registry.events.off(Phaser.Data.Events.SET_DATA, onSet);
     });
   }
 }

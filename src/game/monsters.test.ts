@@ -44,6 +44,13 @@ describe('the species bench', () => {
     }
   });
 
+  it('every species is killable and takes at least one hit', () => {
+    for (const def of Object.values(MONSTER_SPECIES)) {
+      expect(def.hp, def.id).toBeGreaterThanOrEqual(1);
+      expect(Number.isInteger(def.hp), def.id).toBe(true);
+    }
+  });
+
   it('bands cover every depth above the nadir', () => {
     for (let depth = 1; depth < maxDepth(); depth++) {
       const bench = speciesForDepth(depth);
