@@ -4,7 +4,7 @@
  * consume this, so live and offline rendering can never drift apart.
  */
 import { Tile, isWalkable, type Floorplan } from '../dungeon/generate';
-import { wallAtlasCell } from './dtii-blob';
+import { wallAtlasCell, wallMaskAt } from './dtii-blob';
 import type { DtiiFrameName } from './dtii-frames';
 import { WALL_CELL_INSETS } from './dtii-wall-insets';
 import { floorFrameAt } from './tiles';
@@ -80,7 +80,17 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
         }
       }
       if (touchesFloor) ground.push({ x, y, name: floorFrameAt(x, y, plan.depth) });
-      walls.push({ x, y, cell, depth: wallBaseDepth(y) });
+      // A vertically-continuous wall is ONE structure visually: sink each
+      // south-connected piece's depth to the bottom of its run, so an actor
+      // beside a column can't pop in front of a mid-column bar segment with
+      // their tucked head. Pieces without a south connection (faces, south
+      // caps) keep their own base — that boundary is where actors legitimately
+      // pass in front.
+      let baseRow = y;
+      while (wallMaskAt(wallish, x, baseRow) & 16 && wallish(x, baseRow + 1) && baseRow < s - 1) {
+        baseRow++;
+      }
+      walls.push({ x, y, cell, depth: wallBaseDepth(baseRow) });
 
       if (plan.tiles[y * s + x] === Tile.Wall) {
         // Collide where the wall is VISIBLE: the art's transparent ground

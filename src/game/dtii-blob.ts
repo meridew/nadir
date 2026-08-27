@@ -106,11 +106,8 @@ export const BLOB_CELL: Readonly<Record<number, number>> = {
   255: 33,
 };
 
-/**
- * Atlas cell for the wall structure at (x, y), given a lookup that reports
- * whether a coordinate is wall-like (wall, void, or out of bounds).
- */
-export function wallAtlasCell(
+/** Reduced neighbor mask for the wall cell at (x, y). */
+export function wallMaskAt(
   wallish: (x: number, y: number) => boolean,
   x: number,
   y: number,
@@ -124,9 +121,22 @@ export function wallAtlasCell(
   if (wallish(x - 1, y + 1)) mask |= 32;
   if (wallish(x - 1, y)) mask |= 64;
   if (wallish(x - 1, y - 1)) mask |= 128;
-  const cell = BLOB_CELL[blobReduce(mask)];
+  return blobReduce(mask);
+}
+
+/**
+ * Atlas cell for the wall structure at (x, y), given a lookup that reports
+ * whether a coordinate is wall-like (wall, void, or out of bounds).
+ */
+export function wallAtlasCell(
+  wallish: (x: number, y: number) => boolean,
+  x: number,
+  y: number,
+): number {
+  const reduced = wallMaskAt(wallish, x, y);
+  const cell = BLOB_CELL[reduced];
   if (cell === undefined) {
-    throw new Error(`no blob cell for mask ${mask} (reduced ${blobReduce(mask)})`);
+    throw new Error(`no blob cell for reduced mask ${reduced}`);
   }
   return cell;
 }
