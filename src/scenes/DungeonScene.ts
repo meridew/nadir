@@ -8,6 +8,7 @@ import { ANIM } from '../game/anims';
 import { actorDepth, buildFloorDraws } from '../game/draws';
 import { wallSheetFrame } from '../game/dtii-blob';
 import { installDebugHook } from '../game/debug';
+import { CONTACT_DAMAGE, MAX_HP } from '../game/combat';
 import { setHud, patchHud } from '../game/hud';
 import { KeyInput } from '../game/input';
 import { MONSTER_SPECIES, placeMonsters } from '../game/monsters';
@@ -23,6 +24,8 @@ import {
 interface DungeonData {
   seed: string;
   depth: number;
+  /** carried across floors within a run; omitted = fresh run at MAX_HP */
+  hp?: number;
 }
 
 const ZOOM = 3;
@@ -39,6 +42,8 @@ export class DungeonScene extends Phaser.Scene {
   private wallBodies: Phaser.GameObjects.Zone[] = [];
   private transitioning = false;
   private won = false;
+  private dead = false;
+  private hp = MAX_HP;
   private debugMove: { vx: number; vy: number; until: number } | null = null;
   /** flight recorder: recent feet-box positions for glitch reports (nadir.trail()) */
   private crumbs: { t: number; x: number; y: number; dt: number }[] = [];
@@ -50,8 +55,10 @@ export class DungeonScene extends Phaser.Scene {
   init(data: Partial<DungeonData>) {
     this.seed = data.seed ?? this.seed;
     this.depth = data.depth ?? 1;
+    this.hp = data.hp ?? MAX_HP;
     this.transitioning = false;
     this.won = false;
+    this.dead = false;
     this.debugMove = null;
     this.prizeSprite = undefined;
     this.monsters = [];
@@ -82,6 +89,9 @@ export class DungeonScene extends Phaser.Scene {
       seed: this.seed,
       status: plan.isNadir ? 'The nadir. Claim what waits here.' : 'Find the way down.',
       won: false,
+      hp: this.hp,
+      maxHp: MAX_HP,
+      dead: false,
     });
 
     installDebugHook({
@@ -92,6 +102,8 @@ export class DungeonScene extends Phaser.Scene {
         size: plan.size,
         seed: this.seed,
         won: this.won,
+        hp: this.hp,
+        dead: this.dead,
         player: {
           x: Math.floor(this.player.x / TILE_SIZE),
           y: Math.floor(this.player.y / TILE_SIZE),
@@ -172,7 +184,24 @@ export class DungeonScene extends Phaser.Scene {
     if (this.monsters.length === 0) return;
     this.physics.add.collider(this.monsters, this.wallBodies);
     this.physics.add.collider(this.monsters, this.monsters);
-    this.physics.add.collider(this.player, this.monsters);
+    this.physics.add.collider(this.player, this.monsters, (_p, m) =>
+      this.onMonsterContact(m as Monster),
+    );
+  }
+
+  private onMonsterContact(m: Monster) {
+    if (this.dead || this.won || this.transitioning) return;
+    if (!this.player.hurt(m.x, m.feetY)) return;
+    this.hp = Math.max(0, this.hp - CONTACT_DAMAGE);
+    patchHud(this, { hp: this.hp });
+    this.cameras.main.shake(90, 0.004);
+    if (this.hp <= 0) this.onDeath();
+  }
+
+  private onDeath() {
+    this.dead = true;
+    this.player.die();
+    patchHud(this, { dead: true, status: 'The dungeon keeps what it kills.' });
   }
 
   private canSee = (m: Monster): boolean => {
@@ -223,6 +252,11 @@ export class DungeonScene extends Phaser.Scene {
       for (const m of this.monsters) m.halt();
       return;
     }
+    if (this.dead) {
+      // the knight holds the death pose; the dungeon goes still
+      for (const m of this.monsters) m.halt();
+      return;
+    }
 
     let intent = this.keyInput.moveIntent();
     if (this.debugMove) {
@@ -246,12 +280,12 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   private descend() {
-    if (this.won) return;
-    this.fadeTo({ seed: this.seed, depth: this.depth + 1 }, { zoomPunch: true });
+    if (this.won || this.dead) return;
+    this.fadeTo({ seed: this.seed, depth: this.depth + 1, hp: this.hp }, { zoomPunch: true });
   }
 
   private claimPrize() {
-    if (this.won || this.transitioning) return;
+    if (this.won || this.dead || this.transitioning) return;
     this.won = true;
     this.prizeSprite?.play(ANIM.chestOpen);
     patchHud(this, { status: 'Press R to descend again, N for a new dungeon.', won: true });

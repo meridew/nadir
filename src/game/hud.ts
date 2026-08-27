@@ -10,6 +10,10 @@ export interface HudState {
   seed: string;
   status: string;
   won: boolean;
+  /** half-heart units (see game/combat.ts) */
+  hp: number;
+  maxHp: number;
+  dead: boolean;
 }
 
 export function setHud(scene: Phaser.Scene, hud: HudState) {
