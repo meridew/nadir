@@ -4,7 +4,7 @@
  * consume this, so live and offline rendering can never drift apart.
  */
 import { Tile, isWalkable, type Floorplan } from '../dungeon/generate';
-import { wallAtlasCell, wallMaskAt } from './dtii-blob';
+import { wallAtlasCell } from './dtii-blob';
 import type { DtiiFrameName } from './dtii-frames';
 import { WALL_CELL_INSETS } from './dtii-wall-insets';
 import { floorFrameAt } from './tiles';
@@ -80,17 +80,7 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
         }
       }
       if (touchesFloor) ground.push({ x, y, name: floorFrameAt(x, y, plan.depth) });
-      // A vertically-continuous wall is ONE structure visually: sink each
-      // south-connected piece's depth to the bottom of its run, so an actor
-      // beside a column can't pop in front of a mid-column bar segment with
-      // their tucked head. Pieces without a south connection (faces, south
-      // caps) keep their own base — that boundary is where actors legitimately
-      // pass in front.
-      let baseRow = y;
-      while (wallMaskAt(wallish, x, baseRow) & 16 && wallish(x, baseRow + 1) && baseRow < s - 1) {
-        baseRow++;
-      }
-      walls.push({ x, y, cell, depth: wallBaseDepth(baseRow) });
+      walls.push({ x, y, cell, depth: wallBaseDepth(y) });
 
       if (plan.tiles[y * s + x] === Tile.Wall) {
         // Collide where the wall is VISIBLE: the art's transparent ground
@@ -102,6 +92,15 @@ export function buildFloorDraws(plan: Floorplan): FloorDraws {
         let t = walkableAt(x, y - 1) ? t0 : 0;
         let r = walkableAt(x + 1, y) ? r0 : 0;
         let b = walkableAt(x, y + 1) ? b0 : 0;
+        // DEPTH-MODEL INVARIANT: sprites may overlap wall art vertically (head
+        // over faces, legs behind south caps) but NEVER horizontally over side
+        // bars — per-cell base sorting cannot order that overlap for pieces
+        // that join two structures (corners). Sprites overhang the feet box by
+        // 3px, so stop the body 3px before the visible bar: the sprite lands
+        // flush on the bar — zero gap, zero overlap.
+        const SPRITE_MARGIN_X = 3;
+        if (l > 0) l = Math.max(0, l - SPRITE_MARGIN_X);
+        if (r > 0) r = Math.max(0, r - SPRITE_MARGIN_X);
         // Solver hardening: thin colliders invite Arcade separation artifacts
         // (direction flip-flops, push-embed pass-throughs). Guarantee a solid
         // core by narrowing floor margins when needed...

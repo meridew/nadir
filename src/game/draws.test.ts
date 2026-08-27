@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { planFromAscii } from '../dungeon/ascii';
 import { Tile, generate, isWalkable } from '../dungeon/generate';
+import { wallAtlasCell } from './dtii-blob';
+import { WALL_CELL_INSETS } from './dtii-wall-insets';
 import { buildFloorDraws, wallBaseDepth } from './draws';
 
 describe('buildFloorDraws', () => {
@@ -113,7 +114,7 @@ describe('buildFloorDraws', () => {
     expect(plugs.size).toBe(pinches);
   });
 
-  it('fills every non-walkable cell with a valid piece at or below its base depth', () => {
+  it('fills every non-walkable cell with a valid piece at its own base depth', () => {
     let nonWalkable = 0;
     for (const t of plan.tiles) if (!isWalkable(t)) nonWalkable++;
     expect(draws.walls).toHaveLength(nonWalkable);
@@ -121,27 +122,42 @@ describe('buildFloorDraws', () => {
       expect(w.cell).toBeGreaterThanOrEqual(0);
       expect(w.cell).toBeLessThan(48);
       expect(w.cell).not.toBe(22);
-      // south-connected pieces sink to their run's bottom base
-      expect(w.depth).toBeGreaterThanOrEqual(wallBaseDepth(w.y));
-      expect((w.depth - wallBaseDepth(w.y)) % 16).toBe(0);
+      expect(w.depth).toBe(wallBaseDepth(w.y));
     }
   });
 
-  it('a vertical wall run sorts as one structure (shared bottom base)', () => {
-    // free-standing divider stub: rows 1-2 at x=3, tip faces floor to the south
-    const thin = planFromAscii([
-      '#######',
-      '#..#..#',
-      '#..#..#',
-      '#.....#',
-      '#######',
-    ]);
-    const d = buildFloorDraws(thin);
-    const column = d.walls.filter((w) => w.x === 3 && w.y >= 1 && w.y <= 2);
-    expect(column).toHaveLength(2);
-    const tipBase = wallBaseDepth(2);
-    for (const w of column) {
-      expect(w.depth, `column piece at row ${w.y}`).toBe(tipBase);
+  it('depth-model invariant: sprites land flush on side bars, never over them', () => {
+    // the sprite overhangs the feet box by 3px; for every wall cell with a
+    // floor-facing horizontal art inset, the collider must stop the body so
+    // that (bodyStop + 3) <= art inset — flush with the bar, never past it
+    const SPRITE_MARGIN_X = 3;
+    const walk = (x: number, y: number) =>
+      x >= 0 && y >= 0 && x < plan.size && y < plan.size && isWalkable(plan.tiles[y * plan.size + x]);
+    const wallish = (x: number, y: number) => !walk(x, y);
+    for (let ty = 0; ty < plan.size; ty++) {
+      for (let tx = 0; tx < plan.size; tx++) {
+        if (plan.tiles[ty * plan.size + tx] !== Tile.Wall) continue;
+        const cell = wallAtlasCell(wallish, tx, ty);
+        const [artL, , artR] = WALL_CELL_INSETS[cell] ?? [0, 0, 0, 0];
+        const sampleY = ty * 16 + 8;
+        let minX = 16;
+        let maxX = 0;
+        for (const c of draws.colliders) {
+          if (sampleY < c.py || sampleY >= c.py + c.h) continue;
+          const a = Math.max(c.px, tx * 16);
+          const b = Math.min(c.px + c.w, (tx + 1) * 16);
+          if (a < b) {
+            minX = Math.min(minX, a - tx * 16);
+            maxX = Math.max(maxX, b - tx * 16);
+          }
+        }
+        if (walk(tx - 1, ty) && artL > 0) {
+          expect(minX + SPRITE_MARGIN_X, `west flush at (${tx},${ty})`).toBeLessThanOrEqual(artL);
+        }
+        if (walk(tx + 1, ty) && artR > 0) {
+          expect(16 - maxX + SPRITE_MARGIN_X, `east flush at (${tx},${ty})`).toBeLessThanOrEqual(artR);
+        }
+      }
     }
   });
 
