@@ -18,6 +18,10 @@ export class Player extends Actor {
       bodyOffset: [3, 18],
       shadow: { width: 10, height: 4 },
     });
+    // Monsters must not bulldoze the knight across the floor when they catch
+    // up — contact consequences are damage + knockback impulses (hearts
+    // chunk), never solver pushes.
+    (this.body as Phaser.Physics.Arcade.Body).pushable = false;
     this.play(ANIM.knightIdle);
   }
 

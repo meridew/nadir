@@ -1,5 +1,6 @@
-/** Typed animation registry. M2 monsters add rows here; scenes never use raw strings. */
+/** Typed animation registry. Monster rows derive from the species bench; scenes never use raw strings. */
 import type Phaser from 'phaser';
+import { MONSTER_SPECIES, monsterAnim, type MonsterAnimKey } from './monsters';
 import { ATLAS_KEY } from './tiles';
 
 export const ANIM = {
@@ -7,7 +8,7 @@ export const ANIM = {
   knightRun: 'knight_m_run',
   chestOpen: 'chest_open',
 } as const;
-export type AnimKey = (typeof ANIM)[keyof typeof ANIM];
+export type AnimKey = (typeof ANIM)[keyof typeof ANIM] | MonsterAnimKey;
 
 interface AnimDef {
   key: AnimKey;
@@ -22,6 +23,10 @@ const ANIM_DEFS: AnimDef[] = [
   { key: ANIM.knightIdle, prefix: 'knight_m_idle_anim_f', frames: 4, rate: 8, repeat: -1 },
   { key: ANIM.knightRun, prefix: 'knight_m_run_anim_f', frames: 4, rate: 12, repeat: -1 },
   { key: ANIM.chestOpen, prefix: 'chest_full_open_anim_f', frames: 3, rate: 8, repeat: 0 },
+  ...Object.values(MONSTER_SPECIES).flatMap((m): AnimDef[] => [
+    { key: monsterAnim(m.id, 'idle'), prefix: m.idlePrefix, frames: 4, rate: 8, repeat: -1 },
+    { key: monsterAnim(m.id, 'run'), prefix: m.runPrefix, frames: 4, rate: 12, repeat: -1 },
+  ]),
 ];
 
 export function registerAnims(scene: Phaser.Scene) {

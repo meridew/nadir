@@ -48,6 +48,16 @@ export abstract class Actor extends Phaser.Physics.Arcade.Sprite {
     return (this.body as Phaser.Physics.Arcade.Body).bottom;
   }
 
+  /**
+   * Center of the feet box — the line-of-sight sampling point. Box EDGES press
+   * exactly onto tile boundaries against walls and floor into the wall row
+   * (an actor hugging a wall would go blind); the center never does.
+   */
+  get feetCenter(): { x: number; y: number } {
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    return { x: body.center.x, y: body.center.y };
+  }
+
   private syncDepth() {
     const feet = this.feetY;
     this.setDepth(actorDepth(feet));

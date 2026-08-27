@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { randomSeedString } from '../core/rng';
-import { generate, maxDepth, type Floorplan } from '../dungeon/generate';
+import { generate, isWalkable, maxDepth, type Floorplan } from '../dungeon/generate';
+import { lineOfSight } from '../dungeon/los';
+import { Monster } from '../entities/Monster';
 import { Player } from '../entities/Player';
 import { ANIM } from '../game/anims';
 import { actorDepth, buildFloorDraws } from '../game/draws';
@@ -8,6 +10,7 @@ import { wallSheetFrame } from '../game/dtii-blob';
 import { installDebugHook } from '../game/debug';
 import { setHud, patchHud } from '../game/hud';
 import { KeyInput } from '../game/input';
+import { MONSTER_SPECIES, placeMonsters } from '../game/monsters';
 import {
   ATLAS_KEY,
   TILES_KEY,
@@ -30,6 +33,7 @@ export class DungeonScene extends Phaser.Scene {
   private depth = 1;
   private plan!: Floorplan;
   private player!: Player;
+  private monsters: Monster[] = [];
   private prizeSprite?: Phaser.GameObjects.Sprite;
   private keyInput!: KeyInput;
   private wallBodies: Phaser.GameObjects.Zone[] = [];
@@ -50,6 +54,7 @@ export class DungeonScene extends Phaser.Scene {
     this.won = false;
     this.debugMove = null;
     this.prizeSprite = undefined;
+    this.monsters = [];
   }
 
   create() {
@@ -61,6 +66,7 @@ export class DungeonScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, worldPx, worldPx);
     this.player.setCollideWorldBounds(true);
     this.buildObjectives(plan);
+    this.spawnMonsters(plan);
     this.setupCamera(worldPx);
 
     this.keyInput = new KeyInput(this);
@@ -92,6 +98,12 @@ export class DungeonScene extends Phaser.Scene {
         },
         stairs: plan.stairsDown,
         prize: plan.prize,
+        monsters: this.monsters.map((m) => ({
+          species: m.def.id,
+          x: Math.floor(m.x / TILE_SIZE),
+          y: Math.floor(m.y / TILE_SIZE),
+          alerted: m.alerted,
+        })),
       }),
       warp: (tx, ty) => this.player.setPosition(tileCenter(tx), tileCenter(ty)),
       move: (vx, vy, ms) => {
@@ -152,6 +164,32 @@ export class DungeonScene extends Phaser.Scene {
     }
   }
 
+  /** The danger: bench monsters spawn and chase (damage arrives with the hearts chunk). */
+  private spawnMonsters(plan: Floorplan) {
+    this.monsters = placeMonsters(plan, this.seed).map(
+      (m) => new Monster(this, tileCenter(m.x), tileCenter(m.y), MONSTER_SPECIES[m.species]),
+    );
+    if (this.monsters.length === 0) return;
+    this.physics.add.collider(this.monsters, this.wallBodies);
+    this.physics.add.collider(this.monsters, this.monsters);
+    this.physics.add.collider(this.player, this.monsters);
+  }
+
+  private canSee = (m: Monster): boolean => {
+    const s = this.plan.size;
+    const walk = (tx: number, ty: number) =>
+      tx >= 0 && ty >= 0 && tx < s && ty < s && isWalkable(this.plan.tiles[ty * s + tx]);
+    const eye = m.feetCenter;
+    const target = this.player.feetCenter;
+    return lineOfSight(
+      walk,
+      eye.x / TILE_SIZE,
+      eye.y / TILE_SIZE,
+      target.x / TILE_SIZE,
+      target.y / TILE_SIZE,
+    );
+  };
+
   private setupCamera(worldPx: number) {
     const cam = this.cameras.main;
     cam.setZoom(ZOOM);
@@ -175,12 +213,14 @@ export class DungeonScene extends Phaser.Scene {
   update() {
     if (this.transitioning) {
       this.player.halt();
+      for (const m of this.monsters) m.halt();
       return;
     }
     if (this.keyInput.justRestart()) return this.fadeTo({ seed: this.seed, depth: 1 });
     if (this.keyInput.justNewRun()) return this.fadeTo({ seed: randomSeedString(), depth: 1 });
     if (this.won) {
       this.player.halt();
+      for (const m of this.monsters) m.halt();
       return;
     }
 
@@ -193,6 +233,7 @@ export class DungeonScene extends Phaser.Scene {
       }
     }
     this.player.move(intent);
+    for (const m of this.monsters) m.updateAI(this.player, this.canSee, this.time.now);
 
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     this.crumbs.push({
